@@ -1,0 +1,19 @@
+# MAA PixelPainter - 自动像素画绘画工具
+# 基于 MAA Win32 控制单元架构（WGC截图 + SendMessage 输入）
+# 适用于明日方舟夏日嘉年华像素画编辑器（24×24, 38色）
+
+# 核心依赖（必需）
+pywin32>=306            # SendMessage 输入
+PySide6>=6.5.0          # GUI
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# WGC 截图（dxcam 为可选：装上用 WGC 高效截图，装不上自动降级 mss）
+dxcam>=0.3.0
+# dxcam 的 winrt 后端：WGC 自动做 HDR→SDR 色调映射，HDR 屏幕必须（否则截图发白）
+dxcam[winrt]>=0.3.0
+mss>=9.0.0              # 截图降级方案
+
+# 自动校准（可选：装不上时自动检测不可用，但手动标点正常）
+opencv-python>=4.8.0
+

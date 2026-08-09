@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local machine-specific calibration config
+pixel_painter_config.json
+
+# Generated screenshot artifact
+calibration_capture.png
+
+# Vendored upstream framework (has its own upstream repo)
+tools/official_maa/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
