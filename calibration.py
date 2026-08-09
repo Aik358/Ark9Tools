@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """校准模块：画布与色板坐标计算 + OpenCV 自动检测"""
+from __future__ import annotations
+
 import json
 import os
 from typing import List, Optional, Tuple

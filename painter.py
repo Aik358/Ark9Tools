@@ -19,6 +19,7 @@ from PIL import ImageGrab
 
 from win32_input import WindowInput, find_window, WHEEL_DELTA
 from win32_capture import ScreenCapturer
+from hdrcapture_adapter import AutoSdrWindowCapture
 from calibration import Calibration, detect_palette_from_screenshot, sample_color_at
 from palette import EXHIBITION_PALETTE, color_dist, find_nearest_idx
 
@@ -68,9 +69,17 @@ class Painter:
         self.input = WindowInput(hwnd)
         self.cal = cal
         self.window_region = window_region
-        # 使用稳定的 DXGI 区域截图。WGC/FramePool 的伪最小化生命周期由
-        # 官方 C++ 控制单元管理，当前 Python 实现不模拟该路径。
+        # 推荐：hdrcapture auto 统一输出 BGRA8 SDR（HDR/Auto HDR 与 SDR 共用）。
+        # 原 DXGI 仅在该管线初始化或连续取帧失败时作为兼容回退。
         self.capturer = ScreenCapturer(window_region, prefer_winrt=False)
+        try:
+            self.sdr_capturer = AutoSdrWindowCapture(hwnd)
+            self.sdr_capturer._ensure_pipeline()
+            self.sdr_capture_source = "hdrcapture-auto"
+        except Exception as exc:
+            self.sdr_capturer = None
+            self.sdr_capture_source = "dxgi-fallback"
+            self._sdr_capture_error = str(exc)
         self.progress = PaintingProgress()
         self.progress_cb = progress_cb
         self.verify_enabled = verify
@@ -83,6 +92,18 @@ class Painter:
 
     def stop(self):
         self._stop = True
+
+    def _close_capturers(self):
+        try:
+            self.capturer.close()
+        except Exception:
+            pass
+        if self.sdr_capturer is not None:
+            try:
+                self.sdr_capturer.close()
+            except Exception:
+                pass
+            self.sdr_capturer = None
 
     def _ensure_foreground(self, timeout: float = 5.0) -> bool:
         """确保游戏窗口保持前台（窗口化下 SendInput 只发给前台窗口）。
@@ -127,13 +148,25 @@ class Painter:
         if not ok:
             raise RuntimeError("鼠标未能移动到目标坐标，已阻止点击")
 
+    def _sdr_rgb_frame(self) -> np.ndarray:
+        """返回统一 SDR RGB 帧，供网格、色板与画布验证共用。"""
+        if self.sdr_capturer is not None:
+            bgr = self.sdr_capturer.grab()
+            if bgr is not None:
+                return np.ascontiguousarray(bgr[:, :, ::-1])
+            # hdrcapture 连续失败后释放管线，后续用稳定 DXGI 兼容回退。
+            if self.sdr_capturer.last_error:
+                self.sdr_capture_source = "dxgi-fallback"
+                self.sdr_capturer.close()
+                self.sdr_capturer = None
+        bgr = self.capturer.grab()
+        if bgr is None:
+            raise RuntimeError("HDR SDR 捕获与 DXGI 回退均未返回有效窗口帧")
+        return np.ascontiguousarray(bgr[:, :, ::-1])
+
     def _desktop_palette_frame(self) -> np.ndarray:
-        """读取当前桌面上的游戏客户区，用于稳定的实时色板校色。"""
-        ox, oy = _client_origin_screen(self.hwnd)
-        rc = wt.RECT()
-        user32.GetClientRect(self.hwnd, ctypes.byref(rc))
-        return np.asarray(ImageGrab.grab(
-            bbox=(ox, oy, ox + rc.right, oy + rc.bottom)).convert("RGB"))
+        """兼容旧调用：返回同一份 SDR RGB 帧。"""
+        return self._sdr_rgb_frame()
 
     def _refresh_palette_geometry(self):
         """从当前桌面画面检测色板网格，刷新仅本次绘画使用的坐标。"""
@@ -269,8 +302,9 @@ class Painter:
 
     def _verify(self, x: int, y: int, expected_color_idx: int) -> bool:
         """涂色后校验：截图该格中心，匹配预期颜色"""
-        img = self.capturer.grab()
-        if img is None:
+        try:
+            img = self._sdr_rgb_frame()
+        except RuntimeError:
             return True
         cx, cy = self.cal.canvas_cell_center(x, y)
         # 区域截图（DXGI）：region 起点 = 客户区左上角，
@@ -307,7 +341,7 @@ class Painter:
         if self.input_mode == "sendinput" and not self._ensure_foreground(1.5):
             self._stop = True
             self.progress.status_msg = "游戏窗口未保持前台，未发送绘制输入"
-            self.capturer.close()
+            self._close_capturers()
             self._emit()
             return self.progress
         # 先只操作色板进行实测校色。任何所需颜色缺失或拖动无效时，
@@ -324,7 +358,7 @@ class Painter:
         except Exception as e:
             self._stop = True
             self.progress.status_msg = f"色板校准失败：{e}"
-            self.capturer.close()
+            self._close_capturers()
             self._emit()
             return self.progress
 
@@ -363,5 +397,5 @@ class Painter:
             # 每格间隔：给游戏足够响应时间（避免点太快游戏反应不过来）
             time.sleep(0.08)
 
-        self.capturer.close()
+        self._close_capturers()
         return self.progress

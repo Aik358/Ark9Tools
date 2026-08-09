@@ -11,32 +11,24 @@ if errorlevel 1 (
     exit /b
 )
 
-where python >nul 2>&1
-if errorlevel 1 (
-    echo Python 3.10+ was not found.
+set "PYTHON=%~dp0.venv\Scripts\python.exe"
+if not exist "%PYTHON%" (
+    echo Recommended HDR capture environment was not found.
+    echo Run setup_hdr_env.bat once to create the Python 3.13 environment.
     pause
     exit /b 1
 )
 
-echo Checking dependencies...
-python -c "import PySide6, numpy, PIL, win32gui, mss" 2>nul
+echo Checking HDR capture dependencies...
+"%PYTHON%" -c "import hdrcapture, PySide6, numpy, PIL, win32gui, mss, cv2" 2>nul
 if errorlevel 1 (
-    echo Installing required dependencies...
-    python -m pip install pywin32 PySide6 numpy Pillow mss -i https://pypi.tuna.tsinghua.edu.cn/simple --timeout 60
-    if errorlevel 1 (
-        echo Dependency installation failed.
-        pause
-        exit /b 1
-    )
-)
-
-python -c "import cv2" 2>nul
-if errorlevel 1 (
-    python -m pip install opencv-python -i https://pypi.tuna.tsinghua.edu.cn/simple --timeout 60 2>nul
+    echo Dependency installation is incomplete. Run setup_hdr_env.bat.
+    pause
+    exit /b 1
 )
 
 echo.
-echo Starting Ark9Tools...
-python main.py
+echo Starting Ark9Tools with hdrcapture auto SDR mode...
+"%PYTHON%" main.py
 pause
 endlocal
