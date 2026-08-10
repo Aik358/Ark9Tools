@@ -264,7 +264,9 @@ def pixelate(image_path: str,
              contrast: float = 1.0,
              color_count: int = DEFAULT_K,
              dither: str = "fs",
-             flatten_white: bool = True) -> np.ndarray:
+             flatten_white: bool = True,
+             crop_box: Optional[tuple[int, int, int, int]] = None,
+             transparent_mode: str = "blank") -> np.ndarray:
     """将图片转换为 24×24 × 38色索引矩阵（完全照搬 HTML confirmCrop 算法）。
 
     Args:
@@ -275,11 +277,34 @@ def pixelate(image_path: str,
         color_count: K-means 聚类数（HTML 默认 32）
         dither: 'fs' | 'atkinson' | 'none'（HTML 默认 fs）
         flatten_white: 纯白格（RGB=255）是否作为空（不涂）
+        crop_box: 可选裁剪区域 (left, top, right, bottom)，坐标基于原图像素
+        transparent_mode: 透明区域处理方式，'blank' 留白，'black' 转黑色
 
     Returns:
         np.ndarray: shape=(24,24), dtype=int, 值为 0~37 的官方色板索引
     """
-    img = Image.open(image_path).convert("RGB")
+    if transparent_mode not in {"blank", "black"}:
+        raise ValueError("transparent_mode 必须是 'blank' 或 'black'")
+    source = Image.open(image_path).convert("RGBA")
+    if crop_box is not None:
+        left, top, right, bottom = crop_box
+        width, height = source.size
+        left = max(0, min(int(left), width - 1))
+        top = max(0, min(int(top), height - 1))
+        right = max(left + 1, min(int(right), width))
+        bottom = max(top + 1, min(int(bottom), height))
+        source = source.crop((left, top, right, bottom))
+
+    alpha = source.getchannel("A")
+    transparency_mask = np.asarray(alpha.resize(
+        (GRID_SIZE, GRID_SIZE), Image.Resampling.BOX), dtype=np.uint8) < 128
+    if transparent_mode == "black":
+        background = Image.new("RGBA", source.size, (0, 0, 0, 255))
+        background.alpha_composite(source)
+        img = background.convert("RGB")
+    else:
+        img = Image.new("RGB", source.size, (255, 255, 255))
+        img.paste(source.convert("RGB"), mask=alpha)
 
     # Step 1: 超采样到 192×192（白底），应用滤镜
     hi_res = GRID_SIZE * SAMPLE
@@ -301,7 +326,9 @@ def pixelate(image_path: str,
     idx_mat = map_38[k_idx]
 
     # 纯白格映射为 X01(0)（跳过不涂）
-    if flatten_white:
+    if flatten_white or transparent_mode == "blank":
+        if transparent_mode == "blank":
+            idx_mat[transparency_mask] = WHITE_PALETTE_INDEX
         # 近似白识别：图片缩放（LANCZOS）+ 滤镜后，白色背景的 K-means 中心
         # 通常是 240~255 的浅灰白，并非精确 255。若只判定"恰好 255"，
         # 绝大多数白色背景会漏检 → 被映射为 X15 奶白等浅色 → 绘画时被涂色。

@@ -31,7 +31,8 @@ except Exception:
 import numpy as np
 from PySide6.QtCore import Qt, Signal, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtGui import QImage, QPixmap, QColor, QShortcut, QKeySequence, QIcon
+from PySide6.QtGui import QImage, QPixmap, QColor, QShortcut, QKeySequence, QIcon, QPainter, QPen
+from PIL import Image
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QDialog, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFileDialog, QLineEdit, QSlider, QCheckBox,
@@ -192,6 +193,153 @@ def _make_preview_pixmap(idx_mat: np.ndarray, cell: int = 18) -> QPixmap:
     return QPixmap.fromImage(img)
 
 
+class CropDialog(QDialog):
+    """以原图像素坐标指定裁剪区域，并提供实时预览。"""
+
+    def __init__(self, image_path: str, crop_box=None, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("裁剪图片")
+        self.setMinimumSize(680, 540)
+        self._image = Image.open(image_path).convert("RGB")
+        width, height = self._image.size
+        if crop_box is None:
+            crop_box = (0, 0, width, height)
+        self.crop_box = crop_box
+
+        layout = QVBoxLayout(self)
+        form = QGridLayout()
+        self.x_spin = QSpinBox(); self.x_spin.setRange(0, width - 1); self.x_spin.setValue(crop_box[0])
+        self.y_spin = QSpinBox(); self.y_spin.setRange(0, height - 1); self.y_spin.setValue(crop_box[1])
+        self.w_spin = QSpinBox(); self.w_spin.setRange(1, width); self.w_spin.setValue(crop_box[2] - crop_box[0])
+        self.h_spin = QSpinBox(); self.h_spin.setRange(1, height); self.h_spin.setValue(crop_box[3] - crop_box[1])
+        for row, (text, control) in enumerate((("左侧 X", self.x_spin), ("顶部 Y", self.y_spin), ("宽度", self.w_spin), ("高度", self.h_spin))):
+            form.addWidget(QLabel(text), row // 2, (row % 2) * 2)
+            form.addWidget(control, row // 2, (row % 2) * 2 + 1)
+        layout.addLayout(form)
+        self.preview = QLabel()
+        self.preview.setMinimumSize(560, 380)
+        self.preview.setAlignment(Qt.AlignCenter)
+        self.preview.setStyleSheet("background:#101923;border:1px solid #2a3d4b;border-radius:6px;")
+        layout.addWidget(self.preview, 1)
+        actions = QHBoxLayout()
+        actions.addStretch()
+        reset = QPushButton("恢复全图")
+        reset.clicked.connect(lambda: self._set_full_image())
+        actions.addWidget(reset)
+        cancel = QPushButton("取消")
+        cancel.clicked.connect(self.reject)
+        actions.addWidget(cancel)
+        confirm = QPushButton("应用裁剪")
+        _set_type(confirm, "primary")
+        confirm.clicked.connect(self._accept_crop)
+        actions.addWidget(confirm)
+        layout.addLayout(actions)
+        for control in (self.x_spin, self.y_spin, self.w_spin, self.h_spin):
+            control.valueChanged.connect(self._refresh_preview)
+        self._refresh_preview()
+
+    def _set_full_image(self):
+        width, height = self._image.size
+        self.x_spin.setValue(0); self.y_spin.setValue(0)
+        self.w_spin.setValue(width); self.h_spin.setValue(height)
+
+    def _box(self):
+        width, height = self._image.size
+        left = min(self.x_spin.value(), width - 1)
+        top = min(self.y_spin.value(), height - 1)
+        right = min(width, left + self.w_spin.value())
+        bottom = min(height, top + self.h_spin.value())
+        return left, top, max(left + 1, right), max(top + 1, bottom)
+
+    def _refresh_preview(self):
+        crop = self._image.crop(self._box())
+        qimg = QImage(crop.tobytes(), crop.width, crop.height, crop.width * 3, QImage.Format_RGB888).copy()
+        self.preview.setPixmap(QPixmap.fromImage(qimg).scaled(self.preview.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+    def _accept_crop(self):
+        self.crop_box = self._box()
+        self.accept()
+
+
+class PixelGridEditor(QWidget):
+    changed = Signal()
+
+    def __init__(self, idx_mat: np.ndarray, selected_color: QComboBox, parent=None):
+        super().__init__(parent)
+        self.idx_mat = idx_mat.copy()
+        self.selected_color = selected_color
+        self.setMinimumSize(480, 480)
+
+    def _cell_geometry(self):
+        side = min(self.width(), self.height())
+        cell = max(1, side // 24)
+        return cell, (self.width() - cell * 24) // 2, (self.height() - cell * 24) // 2
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        cell, ox, oy = self._cell_geometry()
+        for y in range(24):
+            for x in range(24):
+                painter.fillRect(ox + x * cell, oy + y * cell, cell, cell, QColor(*EXHIBITION_PALETTE[int(self.idx_mat[y, x])][1]))
+        painter.setPen(QPen(QColor("#344655"), 1))
+        for n in range(25):
+            painter.drawLine(ox + n * cell, oy, ox + n * cell, oy + cell * 24)
+            painter.drawLine(ox, oy + n * cell, ox + cell * 24, oy + n * cell)
+
+    def mousePressEvent(self, event):
+        cell, ox, oy = self._cell_geometry()
+        x = (int(event.position().x()) - ox) // cell
+        y = (int(event.position().y()) - oy) // cell
+        if 0 <= x < 24 and 0 <= y < 24:
+            self.idx_mat[y, x] = self.selected_color.currentData()
+            self.update()
+            self.changed.emit()
+
+
+class PixelEditorDialog(QDialog):
+    def __init__(self, idx_mat: np.ndarray, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("精修像素图")
+        self.setMinimumSize(690, 650)
+        self.result_mat = idx_mat.copy()
+        layout = QVBoxLayout(self)
+        top = QHBoxLayout()
+        top.addWidget(QLabel("绘制颜色："))
+        self.color_combo = QComboBox()
+        for index, (code, rgb, name) in enumerate(EXHIBITION_PALETTE):
+            self.color_combo.addItem(f"{code}  {name}  {rgb_to_hex(rgb)}", index)
+        top.addWidget(self.color_combo, 1)
+        clear = QPushButton("设为留白")
+        clear.clicked.connect(lambda: self.color_combo.setCurrentIndex(WHITE_PALETTE_INDEX))
+        top.addWidget(clear)
+        layout.addLayout(top)
+        self.grid = PixelGridEditor(idx_mat, self.color_combo)
+        layout.addWidget(self.grid, 1)
+        self.summary = QLabel()
+        self.summary.setProperty("class", "subtitle")
+        layout.addWidget(self.summary)
+        actions = QHBoxLayout()
+        actions.addStretch()
+        cancel = QPushButton("取消")
+        cancel.clicked.connect(self.reject)
+        actions.addWidget(cancel)
+        confirm = QPushButton("应用精修")
+        _set_type(confirm, "primary")
+        confirm.clicked.connect(self._accept_edit)
+        actions.addWidget(confirm)
+        layout.addLayout(actions)
+        self.grid.changed.connect(self._refresh_summary)
+        self._refresh_summary()
+
+    def _refresh_summary(self):
+        used = count_color_usage(self.grid.idx_mat)
+        self.summary.setText(f"非白格：{np.count_nonzero(self.grid.idx_mat != WHITE_PALETTE_INDEX)} / 576  ·  使用 {len(used)} 种色")
+
+    def _accept_edit(self):
+        self.result_mat = self.grid.idx_mat.copy()
+        self.accept()
+
+
 # ===========================================================================
 # 步骤 ① 图片像素化
 # ===========================================================================
@@ -205,6 +353,7 @@ class StepPixelate(QWidget):
         self.ctx = app_ctx
         self.idx_mat: Optional[np.ndarray] = None
         self.image_path: Optional[str] = None
+        self.crop_box: Optional[tuple[int, int, int, int]] = None
         self._init_ui()
         self.convert_done_signal.connect(self._on_convert_done)
         self.convert_error_signal.connect(self._on_convert_error)
@@ -230,6 +379,10 @@ class StepPixelate(QWidget):
         btn = QPushButton("浏览…")
         btn.clicked.connect(self.on_browse)
         fb.addWidget(btn)
+        self.btn_crop = QPushButton("裁剪图片")
+        self.btn_crop.setEnabled(False)
+        self.btn_crop.clicked.connect(self.on_crop)
+        fb.addWidget(self.btn_crop)
         file_box.setLayout(fb)
         layout.addWidget(file_box)
 
@@ -287,6 +440,12 @@ class StepPixelate(QWidget):
         self.flatten_white = QCheckBox("白色背景映射为 X01（跳过不涂）")
         self.flatten_white.setChecked(True)
         opt_row.addWidget(self.flatten_white)
+        opt_row.addWidget(QLabel("透明背景："))
+        self.transparent_combo = QComboBox()
+        self.transparent_combo.addItem("留白（不绘制）", "blank")
+        self.transparent_combo.addItem("转成黑色", "black")
+        self.transparent_combo.setToolTip("仅对 PNG 等带透明通道的图片生效")
+        opt_row.addWidget(self.transparent_combo)
         opt_row.addWidget(QLabel("取色数 K："))
         self.k_spin = QSpinBox()
         self.k_spin.setRange(4, 64)
@@ -344,6 +503,10 @@ class StepPixelate(QWidget):
         self.btn_export.setEnabled(False)
         self.btn_export.clicked.connect(self.on_export_npy)
         save_row.addWidget(self.btn_export)
+        self.btn_edit = QPushButton("精修像素图")
+        self.btn_edit.setEnabled(False)
+        self.btn_edit.clicked.connect(self.on_edit_pixels)
+        save_row.addWidget(self.btn_edit)
         save_row.addStretch()
         layout.addLayout(save_row)
 
@@ -356,6 +519,20 @@ class StepPixelate(QWidget):
         if path:
             self.path_edit.setText(path)
             self.image_path = path
+            self.crop_box = None
+            self.btn_crop.setEnabled(True)
+
+    def on_crop(self):
+        if not self.image_path or not os.path.exists(self.image_path):
+            return
+        try:
+            dialog = CropDialog(self.image_path, self.crop_box, self)
+            if dialog.exec() == QDialog.Accepted:
+                self.crop_box = dialog.crop_box
+                left, top, right, bottom = self.crop_box
+                self.btn_crop.setText(f"裁剪：{right - left}×{bottom - top}")
+        except Exception as exc:
+            QMessageBox.critical(self, "裁剪失败", str(exc))
 
     def on_convert(self):
         if not self.image_path or not os.path.exists(self.image_path):
@@ -366,18 +543,21 @@ class StepPixelate(QWidget):
             self.btn_convert.setEnabled(False)
             self.btn_convert.setText("转换中…")
             QApplication.processEvents()
+            image_path = self.image_path
+            params = {
+                "contrast": self.con_slider.value() / 100.0,
+                "brightness": self.bri_slider.value() / 100.0,
+                "saturation": self.sat_slider.value() / 100.0,
+                "color_count": self.k_spin.value(),
+                "dither": ["fs", "atkinson", "none"][self.dither_combo.currentIndex()],
+                "flatten_white": self.flatten_white.isChecked(),
+                "crop_box": self.crop_box,
+                "transparent_mode": self.transparent_combo.currentData(),
+            }
 
             def do_convert():
                 try:
-                    mat = pixelate(
-                        self.image_path,
-                        contrast=self.con_slider.value() / 100.0,
-                        brightness=self.bri_slider.value() / 100.0,
-                        saturation=self.sat_slider.value() / 100.0,
-                        color_count=self.k_spin.value(),
-                        dither=["fs", "atkinson", "none"][self.dither_combo.currentIndex()],
-                        flatten_white=self.flatten_white.isChecked(),
-                    )
+                    mat = pixelate(image_path, **params)
                     self.convert_done_signal.emit(mat)
                 except Exception as e:
                     self.convert_error_signal.emit(str(e))
@@ -397,6 +577,7 @@ class StepPixelate(QWidget):
         self._refresh_usage()
         self.btn_preview.setEnabled(True)
         self.btn_export.setEnabled(True)
+        self.btn_edit.setEnabled(True)
         self.btn_convert.setEnabled(True)
         self.btn_convert.setText("转换像素图")
         QMessageBox.information(self, "转换成功",
@@ -426,6 +607,20 @@ class StepPixelate(QWidget):
             code, rgb, name = EXHIBITION_PALETTE[idx]
             lines.append(f"{code}  {rgb_to_hex(rgb)}  {name}  {cnt}")
         self.usage_text.setPlainText("\n".join(lines))
+
+    def on_edit_pixels(self):
+        if self.idx_mat is None:
+            return
+        dialog = PixelEditorDialog(self.idx_mat, self)
+        if dialog.exec() == QDialog.Accepted:
+            self.idx_mat = dialog.result_mat
+            self.ctx.idx_mat = self.idx_mat
+            self._refresh_preview()
+            self._refresh_usage()
+            QMessageBox.information(
+                self, "精修已应用",
+                f"最终矩阵已更新：非白格 {np.count_nonzero(self.idx_mat != WHITE_PALETTE_INDEX)} 个。\n"
+                "后续进入自动绘画时将使用此精修结果。")
 
     def on_save_preview(self):
         if self.idx_mat is None:
