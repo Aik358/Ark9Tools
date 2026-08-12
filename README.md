@@ -1,3 +1,17 @@
+<p align="center">
+  <a href="https://wwbnb.lanzouw.com/iLFkk41zlali" style="display:inline-block;padding:11px 24px;margin:6px 8px;border-radius:8px;background:#2b8a3e;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">📦 蓝奏云 · 下载发行版</a>
+  <a href="https://atomgit.com/A9iska/Ark9Tools" style="display:inline-block;padding:11px 24px;margin:6px 8px;border-radius:8px;background:#1f6feb;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">💻 GitCode · 查看源码</a>
+  <a href="https://github.com/Aik358/Ark9Tools" style="display:inline-block;padding:11px 24px;margin:6px 8px;border-radius:8px;background:#24292f;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">🐙 GitHub · 镜像仓库</a>
+</p>
+
+<blockquote>
+<strong>🔑 蓝奏云提取码：6tq1</strong><br>
+如果按钮打不开，请直接复制以下链接使用：<br>
+GitCode：https://atomgit.com/A9iska/Ark9Tools<br>
+GitHub：https://github.com/Aik358/Ark9Tools<br>
+蓝奏云：https://wwbnb.lanzouw.com/iLFkk41zlali
+</blockquote>
+
 # Ark9Tools
 
 > 【明日方舟】在游戏中全自动绘制像素画！从图像到游戏！
@@ -9,7 +23,7 @@ Ark9Tools 是一个运行在 **Windows 电脑端**的本地游戏自动化工具
 
 它把一张图片自动转换成 24×24 的像素矩阵，连接游戏窗口完成画布与色板校准后，**在游戏里一笔一笔把画自动画出来**。
 
-与「只能在安卓模拟器里运行」的同类工具不同，Ark9Tools 是**原生 PC 端程序**：直接操作你电脑上运行的游戏窗口，不需要装任何安卓模拟器，更轻、更省资源、延迟更低。
+与「只能操作在安卓模拟器里运行的游戏」的同类工具不同，Ark9Tools 控制的是**原生 PC 端游戏进程**：直接操作你电脑上运行的游戏窗口，不需要装任何安卓模拟器，更轻、更省资源、延迟更低。
 
 > Ark9Tools 是独立工具，不是 MAA 或 MaaAssistantArknights 的发行版本。项目参考了公开的 Win32 控制单元设计思路，详细说明见 [MAA_PC端操作模式技术报告与实践方案.md](tools/MAA_PC端操作模式技术报告与实践方案.md)。
 
