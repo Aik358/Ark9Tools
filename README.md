@@ -1,15 +1,15 @@
 <p align="center">
-  <a href="https://wwbnb.lanzouw.com/i4ak641zmd6h" style="display:inline-block;padding:11px 24px;margin:6px 8px;border-radius:8px;background:#2b8a3e;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">📦 蓝奏云 · 下载发行版</a>
+  <a href="https://wwbnb.lanzouw.com/ifUTC41znwfg" style="display:inline-block;padding:11px 24px;margin:6px 8px;border-radius:8px;background:#2b8a3e;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">📦 蓝奏云 · 下载发行版</a>
   <a href="https://atomgit.com/A9iska/Ark9Tools" style="display:inline-block;padding:11px 24px;margin:6px 8px;border-radius:8px;background:#1f6feb;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">💻 GitCode · 查看源码</a>
   <a href="https://github.com/Aik358/Ark9Tools" style="display:inline-block;padding:11px 24px;margin:6px 8px;border-radius:8px;background:#24292f;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">🐙 GitHub · 镜像仓库</a>
 </p>
 
 <blockquote>
-<strong>🔑 蓝奏云提取码：1yh0</strong><br>
+<strong>🔑 蓝奏云提取码：26tw</strong><br>
 如果按钮打不开，请直接复制以下链接使用：<br>
 GitCode：https://atomgit.com/A9iska/Ark9Tools<br>
 GitHub：https://github.com/Aik358/Ark9Tools<br>
-蓝奏云：https://wwbnb.lanzouw.com/i4ak641zmd6h
+蓝奏云：https://wwbnb.lanzouw.com/ifUTC41znwfg
 </blockquote>
 
 # Ark9Tools
@@ -193,4 +193,4 @@ Ark9Tools **不读取或修改游戏内存，不注入游戏进程**，仅通过
 - PC 端操作模式的技术细节见 [`MAA_PC端操作模式技术报告与实践方案.md`](tools/MAA_PC端操作模式技术报告与实践方案.md)。
 - 源码与更新（GitCode，主仓库）：https://atomgit.com/A9iska/Ark9Tools
 - GitHub 镜像（自动同步）：https://github.com/Aik358/Ark9Tools
-- 发行版（蓝奏云，含安装包）：https://wwbnb.lanzouw.com/i4ak641zmd6h （密码：1yh0）
+- 发行版（蓝奏云，含安装包）：https://wwbnb.lanzouw.com/ifUTC41znwfg （密码：26tw）
