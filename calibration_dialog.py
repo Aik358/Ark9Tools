@@ -80,25 +80,27 @@ class ImageLabel(QLabel):
         if not self._pixmap or not self.points:
             return
         p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing)
-        for idx, (x, y, _label, color) in enumerate(self.points):
-            wpt = self._img_to_widget(x, y)
-            p.setPen(QPen(QColor(255, 255, 255, 230), 2))
-            c = 10
-            p.drawLine(wpt.x() - c, wpt.y(), wpt.x() + c, wpt.y())
-            p.drawLine(wpt.x(), wpt.y() - c, wpt.x(), wpt.y() + c)
-            p.setBrush(QColor(*color, 210))
-            p.setPen(QPen(QColor(255, 255, 255), 1))
-            radius = 13
-            p.drawEllipse(wpt.x() - radius, wpt.y() - radius, radius * 2, radius * 2)
-            p.setPen(QColor(255, 255, 255))
-            f = QFont("Microsoft YaHei")
-            f.setPointSize(9)
-            f.setWeight(QFont.Weight.Bold)
-            p.setFont(f)
-            p.drawText(wpt.x() - radius, wpt.y() - radius, radius * 2, radius * 2,
-                       Qt.AlignCenter, str(idx + 1))
-        p.end()
+        try:
+            p.setRenderHint(QPainter.Antialiasing)
+            for idx, (x, y, _label, color) in enumerate(self.points):
+                wpt = self._img_to_widget(x, y)
+                p.setPen(QPen(QColor(255, 255, 255, 230), 2))
+                c = 10
+                p.drawLine(wpt.x() - c, wpt.y(), wpt.x() + c, wpt.y())
+                p.drawLine(wpt.x(), wpt.y() - c, wpt.x(), wpt.y() + c)
+                p.setBrush(QColor(*color, 210))
+                p.setPen(QPen(QColor(255, 255, 255), 1))
+                radius = 13
+                p.drawEllipse(wpt.x() - radius, wpt.y() - radius, radius * 2, radius * 2)
+                p.setPen(QColor(255, 255, 255))
+                f = QFont("Microsoft YaHei")
+                f.setPointSize(9)
+                f.setWeight(QFont.Weight.Bold)
+                p.setFont(f)
+                p.drawText(wpt.x() - radius, wpt.y() - radius, radius * 2, radius * 2,
+                           Qt.AlignCenter, str(idx + 1))
+        finally:
+            p.end()
 
 
 class VisualCalibrationDialog(QWidget):

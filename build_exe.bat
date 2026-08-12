@@ -1,40 +1,49 @@
 @echo off
+setlocal EnableExtensions
 chcp 65001 >nul
-REM ============================================================
-REM  Ark9Tools exe 打包脚本（PyInstaller，带应用 Logo）
-REM  产物输出到 dist\Ark9Tools.exe
-REM ============================================================
 cd /d "%~dp0"
 
-where python >nul 2>&1
+set "PYTHON=%~dp0.venv\Scripts\python.exe"
+if not exist "%PYTHON%" set "PYTHON=C:\Python314\python.exe"
+if not exist "%PYTHON%" set "PYTHON=python"
+
+"%PYTHON%" -c "import PyInstaller" >nul 2>&1
 if errorlevel 1 (
-    echo [错误] 未找到 Python
-    pause
-    exit /b 1
+    echo [安装] PyInstaller...
+    "%PYTHON%" -m pip install pyinstaller --timeout 60
+    if errorlevel 1 goto :fail
 )
 
-python -c "import PyInstaller" 2>nul
-if errorlevel 1 (
-    echo 安装 PyInstaller...
-    python -m pip install pyinstaller -i https://pypi.tuna.tsinghua.edu.cn/simple --timeout 60
+echo [1/2] 构建 Ark9Tools 程序文件...
+"%PYTHON%" -m PyInstaller --noconfirm --clean MAA_PixelPainter.spec
+if errorlevel 1 goto :fail
+
+set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+if not exist "%ISCC%" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
+if not exist "%ISCC%" set "ISCC=%LocalAppData%\Programs\Inno Setup 6\ISCC.exe"
+if not exist "%ISCC%" (
+    for /f "delims=" %%I in ('where ISCC.exe 2^>nul') do set "ISCC=%%I"
+)
+if not exist "%ISCC%" (
+    echo.
+    echo [缺少工具] 未安装 Inno Setup 6。
+    echo 请执行：winget install --id JRSoftware.InnoSetup -e
+    echo 安装后重新运行 build_exe.bat。
+    goto :fail
 )
 
-echo 开始打包（含 Logo）...
-python -m PyInstaller --noconfirm --clean ^
-    --name Ark9Tools ^
-    --windowed ^
-    --uac-admin ^
-    --icon assets\app.ico ^
-    --add-data "assets;assets" ^
-    main.py
-
-if errorlevel 1 (
-    echo [失败] 打包出错
-    pause
-    exit /b 1
-)
+echo [2/2] 生成 Windows 安装程序...
+"%ISCC%" Ark9Tools.iss
+if errorlevel 1 goto :fail
 
 echo.
-echo [完成] 已生成: dist\MAA_PixelPainter.exe
-echo 提示: 将 dist\MAA_PixelPainter 整个文件夹发给用户即可运行。
+echo [完成] 安装程序：dist\Ark9Tools_Setup.exe
+echo 用户可选择安装位置，安装后从开始菜单或桌面启动。
 pause
+exit /b 0
+
+:fail
+echo.
+echo [失败] 安装程序构建未完成。
+pause
+exit /b 1

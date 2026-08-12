@@ -511,12 +511,14 @@ class WindowInput:
         return True
 
     def drag_with_windowpos(self, x1: int, y1: int, x2: int, y2: int,
-                             hold_ms: int = 50, steps: int = 16) -> bool:
+                             hold_ms: int = 50, steps: int = 16,
+                             release_delay_ms: int = 0) -> bool:
         """MAA WindowPos 方式执行色板滑块拖动。
 
         临时移动窗口让滑块起点对准真实光标，再发送完整的
         MOVE -> LBUTTONDOWN -> MOVE(with MK_LBUTTON) -> LBUTTONUP 序列。
-        全程保持窗口位置不变，直到抬起后才恢复，避免拖动中坐标系跳变。
+        `release_delay_ms` 会在抵达终点后继续按住，供滚动列表消除惯性；
+        默认 0，保持步骤③既有绘画行为不变。
         """
         self.save_window_pos()
         if not self.move_window_to_align_cursor(x1, y1):
@@ -539,6 +541,10 @@ class WindowInput:
                     return False
                 SendMessageW(self.hwnd, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(cx, cy))
                 time.sleep(0.018)
+            # 列表滚动在终点继续按住一小段时间，可让 Unity 消化拖动手势，
+            # 避免刚抬起就带出惯性。色板绘画默认传 0，不改变既有动作节奏。
+            if release_delay_ms > 0:
+                time.sleep(release_delay_ms / 1000.0)
             p2 = MAKELPARAM(x2, y2)
             SendMessageW(self.hwnd, WM_LBUTTONUP, 0, p2)
             time.sleep(0.10)

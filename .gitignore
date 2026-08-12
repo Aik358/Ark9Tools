@@ -18,3 +18,15 @@ tools/official_maa/
 Thumbs.db
 *.bak
 *.tmp
+
+# PyInstaller build output (compiled binaries, never commit)
+build/
+dist/
+
+# Scratch / debug helper scripts and artifacts (leading underscore)
+_*
+**/_*
+
+# Runtime-generated pixel data (timestamped collections / history)
+pixel_collection/
+pixel_history/
