@@ -11,7 +11,7 @@ Ark9Tools 是一个运行在 **Windows 电脑端**的本地游戏自动化工具
 
 与「只能在安卓模拟器里运行」的同类工具不同，Ark9Tools 是**原生 PC 端程序**：直接操作你电脑上运行的游戏窗口，不需要装任何安卓模拟器，更轻、更省资源、延迟更低。
 
-> Ark9Tools 是独立工具，不是 MAA 或 MaaAssistantArknights 的发行版本。项目参考了公开的 Win32 控制单元设计思路，详细说明见 [MAA_PC端操作模式技术报告与实践方案.md](MAA_PC端操作模式技术报告与实践方案.md)。
+> Ark9Tools 是独立工具，不是 MAA 或 MaaAssistantArknights 的发行版本。项目参考了公开的 Win32 控制单元设计思路，详细说明见 [MAA_PC端操作模式技术报告与实践方案.md](tools/MAA_PC端操作模式技术报告与实践方案.md)。
 
 ## 核心特性
 
@@ -22,6 +22,15 @@ Ark9Tools 是一个运行在 **Windows 电脑端**的本地游戏自动化工具
 - **HDR 支持**：内置 `hdrcapture` 自动 SDR 捕获（HDR / Auto HDR 屏与 SDR 屏统一输出），绘画颜色判断更准。
 - **安全边界**：只做窗口截图 + Win32 窗口消息 / 窗口位置控制，**不读取、不修改、不注入游戏内存**。
 - **急停**：绘画中按 `ESC` 或 `F8` 可随时全局急停。
+
+## 功能概览
+
+Ark9Tools 围绕「奇象巡展」像素画，提供四件事一条龙：
+
+1. **收藏（识别收藏夹）**：把游戏内「画像收藏」页亮出来，工具自动滚页、截图、识别每一张收藏的像素矩阵，存入本地收藏库，**一张不丢**。
+2. **识图（识别官方宣传图）**：把官方宣传图 / 贺图直接拖进窗口，自动检测 24×24 网格画布并读取像素矩阵——官方负责画，我们负责「偷师」。
+3. **转图（普通图片转像素画）**：任意图片拖入，裁剪、调对比度后三秒转成 24×24 像素画；白底可跳过、附带每色格数统计。
+4. **开画（画到游戏里）**：连接游戏窗口 → 自动校准 → 按颜色频次逐格绘制；进度实时可见，`F8` / `ESC` 一键急停。
 
 ## 当前模块
 
@@ -119,22 +128,36 @@ run.bat             # 以管理员身份启动 Ark9Tools
 Ark9Tools/
 ├── main.py                         # Ark9Tools 宿主与模块路由
 ├── painter.py                      # PixelPainter 绘画控制、色板拖动与实时校色
-├── pixelate.py                    # 图片到 24×24 逻辑色矩阵
-├── palette.py                     # X01~X38 逻辑色表与颜色距离
-├── calibration.py                 # 画布、色板坐标与自动检测
-├── calibration_dialog.py          # 可视化手动校准
-├── win32_input.py                 # Win32 消息、WindowPos 与前台控制
-├── win32_capture.py               # 区域截图与窗口捕获
-├── window_capture.py              # WGC 指定窗口捕获
-├── hdrcapture_adapter.py          # HDR 自动 SDR 捕获适配层
-├── privilege.py                   # 管理员权限检查与提权辅助
-├── pixel_painter_config.json      # 本地窗口与校准配置（不入库）
-├── run.bat                        # 管理员启动、依赖检查和源码运行
-├── setup_hdr_env.bat              # 创建 Python 3.13 虚拟环境并装依赖
-├── tools/
-│   ├── diagnostics/               # 开发诊断脚本（不影响正常使用）
-│   └── official_maa/              # 上游 MaaFramework（不入库，独立项目）
-└── assets/                        # 图标与图片资源
+├── pixelate.py                     # 图片到 24×24 逻辑色矩阵
+├── palette.py                      # X01~X38 逻辑色表与颜色距离
+├── calibration.py                  # 画布、色板坐标与自动检测
+├── calibration_dialog.py           # 可视化手动校准
+├── win32_input.py                  # Win32 消息、WindowPos 与前台控制
+├── win32_capture.py                # 区域截图与窗口捕获
+├── window_capture.py               # WGC 指定窗口捕获
+├── hdrcapture_adapter.py           # HDR 自动 SDR 捕获适配层
+├── experimental_backend.py         # MAA 伪最小化实验后端（opt-in）
+├── experimental_capture.py         # 实验捕获（FramePool/D3D11 占位）
+├── privilege.py                    # 管理员权限检查与提权辅助
+├── history_store.py                # 收藏/历史像素数据存取（收藏库）
+├── requirements.txt                # Python 依赖清单
+├── MAA_PixelPainter.spec           # PyInstaller 打包规格
+├── build_exe.bat                   # 一键编译为 exe
+├── Ark9Tools.iss                   # Inno Setup 安装包脚本
+├── run.bat                         # 管理员启动、依赖检查和源码运行
+├── setup_hdr_env.bat               # 创建 Python 3.13 虚拟环境并装依赖
+├── pixel_painter_config.json       # 本地窗口与校准配置（不入库）
+├── assets/
+│   ├── app.ico                     # 程序图标
+│   ├── logo.png                    # 程序 logo
+│   ├── loading.webm                # 加载动画
+│   └── loading_frames/             # 加载动画逐帧（frame_01~17.png）
+└── tools/
+    ├── diagnostics/                # 开发诊断脚本（含大量 _debug_*.py，不影响正常使用）
+    ├── test_pixel_validation.py    # 像素校验测试
+    ├── test_report.md              # 校验测试报告
+    ├── MAA_PC端操作模式技术报告与实践方案.md  # PC 端操作模式技术报告
+    └── official_maa/               # 上游 MaaFramework（不入库，独立项目）
 ```
 
 ## 依赖
@@ -153,5 +176,7 @@ Ark9Tools **不读取或修改游戏内存，不注入游戏进程**，仅通过
 
 ## 更多
 
-- PC 端操作模式的技术细节见 [`MAA_PC端操作模式技术报告与实践方案.md`](MAA_PC端操作模式技术报告与实践方案.md)。
-- 源码与更新：https://atomgit.com/A9iska/Ark9Tools
+- PC 端操作模式的技术细节见 [`MAA_PC端操作模式技术报告与实践方案.md`](tools/MAA_PC端操作模式技术报告与实践方案.md)。
+- 源码与更新（GitCode，主仓库）：https://atomgit.com/A9iska/Ark9Tools
+- GitHub 镜像（自动同步）：https://github.com/Aik358/Ark9Tools
+- 发行版（蓝奏云，含安装包）：https://wwbnb.lanzouw.com/iLFkk41zlali （密码：6tq1）
